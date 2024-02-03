@@ -1,6 +1,6 @@
 from collections import UserDict
 from abc import ABC, abstractmethod
-from clean import main as clean_main
+from utils import main as clean_main, help_user
 
 import pickle
 
@@ -115,6 +115,12 @@ class Clean:
     @staticmethod
     def clean(file_path):
         clean_main(file_path)
+
+
+class Help:
+    @staticmethod
+    def help_user():
+        help_user()
 
 
 class Record:
@@ -446,6 +452,11 @@ def display_contacts():
 @register_command(command="all_commands")
 def display_commands():
     app.display_commands()
+
+
+@register_command(command="help")
+def help_users():
+    Help.help_user()
 
 
 @register_command(command="clean")
