@@ -1,6 +1,8 @@
 from collections import UserDict
-import pickle
 from abc import ABC, abstractmethod
+from clean import main as clean_main
+
+import pickle
 
 
 class UserInterface(ABC):
@@ -90,12 +92,38 @@ class Phone(Field):
         return len(phone) == 10 and phone.isdigit()
 
 
+class Note:
+    def __init__(self):
+        self.notes = []
+
+    def add_note(self, note):
+        self.notes.append(note)
+
+    def remove_note(self, note):
+        if note in self.notes:
+            self.notes.remove(note)
+
+    def search_note(self, search_note):
+        return [note for note in self.notes if search_note in note]
+
+    def __str__(self):
+        return "\n".join(self.notes)
+
+
+class Clean:
+
+    @staticmethod
+    def clean(file_path):
+        clean_main(file_path)
+
+
 class Record:
     def __init__(self, name):
         self.name = Name(name)
         self.phones = []
-        self.email = None
-        self.address = None
+        self.email = []
+        self.address = []
+        self.note = Note()
 
     def add_phone(self, phone):
         if Phone.validate_phone(phone):
@@ -126,7 +154,6 @@ class Record:
 
     def remove_phone(self, phone):
         self.phones = [p for p in self.phones if p.value != phone]
-        return "Phone number {phone} removed"
 
     def add_email(self, email):
         if Email.validate_email(email):
@@ -140,19 +167,34 @@ class Record:
         else:
             raise ValueError("Invalid email address")
 
+    def remove_email(self, _):
+        self.email = None
+
     def add_address(self, address):
         self.address = Address(address)
 
     def edit_address(self, new_address):
         self.address.value = new_address
 
+    def remove_address(self, _):
+        self.address = None
+
+    def add_note(self, note_value):
+        self.note.add_note(note_value)
+
+    def remove_note(self, note_value):
+        self.note.remove_note(note_value)
+
+    def search_note(self, search_term):
+        return self.note.search_note(search_term)
+
     def __str__(self):
         phones_info = '; '.join(p.value for p in self.phones)
         email_info = f", Email: {self.email}" if self.email else ""
         address_info = f", Address: {self.address}" if self.address else ""
-
+        note_info = f", Note: {self.note}" if self.note else ""
         return (f"Contact name: {self.name.value}, "
-                f"phones: {phones_info}{email_info}{address_info}")
+                f"phones: {phones_info}{email_info}{address_info}{note_info}")
 
 
 class AddressBook(UserDict):
@@ -223,7 +265,7 @@ def hello():
 def add_contact(name):
     record = Record(name)
     address_book.add_record(record)
-    # address_book.save_to_file("address_book.pkl")
+    address_book.save_to_file("address_book.pkl")
     print(f"Contact {name} added")
 
 
@@ -238,6 +280,7 @@ def add_contact(name):
 def delete_contact(name):
     record = Record(name)
     address_book.delete(record)
+    address_book.save_to_file("address_book.pkl")
     print(f"Contact {name} delete")
 
 
@@ -246,6 +289,7 @@ def add_phone(name, phone):
     record = address_book.find(name)
     record.add_phone(phone)
     address_book.add_record(record)
+    address_book.save_to_file("address_book.pkl")
     print(f"Contact {name} Add phone: {phone}")
 
 
@@ -255,6 +299,7 @@ def edit_phone(name, new_number):
     if record:
         record.phones = []
         record.add_phone(new_number)
+        address_book.save_to_file("address_book.pkl")
         print(f"Change name:{name}, phone number:{new_number}")
     else:
         print(f"Not {name} found")
@@ -267,12 +312,24 @@ def search_phone(name):
         print(f"Phone number: {record.phones[0].value}" if record.phones else f"No phone number for {name}")
 
 
+@register_command(command="del_phone")
+def delete_phone(name, phone):
+    record = address_book.find(name)
+    if record:
+        record.remove_phone(phone)
+        address_book.save_to_file("address_book.pkl")
+        print(f"Phone {phone} removed")
+    else:
+        print(f"Not {name} or {phone} found")
+
+
 @register_command(command="add_email")
 def add_email(name, email):
     record = address_book.find(name)
     if record:
         try:
             record.add_email(email)
+            address_book.save_to_file("address_book.pkl")
             print(f"Email added: {email} to contact {name}")
         except ValueError as err:
             print(f"Error: {err}")
@@ -286,9 +343,21 @@ def edit_email(name, new_email):
     if record:
         record.email = []
         record.add_email(new_email)
+        address_book.save_to_file("address_book.pkl")
         print(f"Email change: {new_email} to contact {name}")
     else:
         print(f"Not {name} found")
+
+
+@register_command(command="del_email")
+def delete_email(name, email):
+    record = address_book.find(name)
+    if record:
+        record.remove_email(email)
+        address_book.save_to_file("address_book.pkl")
+        print(f"Email address {email} removed")
+    else:
+        print(f"Not {name} or {email} found")
 
 
 @register_command(command="add_address")
@@ -296,6 +365,7 @@ def add_address(name, address):
     record = address_book.find(name)
     if record:
         record.add_address(address)
+        address_book.save_to_file("address_book.pkl")
         print(f"Address added to contact: {name}")
     else:
         print(f"Contact {name} not found")
@@ -307,7 +377,54 @@ def edit_address(name, new_address):
     if record:
         record.address = []
         record.add_address(new_address)
+        address_book.save_to_file("address_book.pkl")
         print(f"Address change: {new_address}")
+    else:
+        print(f"Contact {name} not found")
+
+
+@register_command(command="del_address")
+def delete_address(name, address):
+    record = address_book.find(name)
+    if address:
+        record.remove_address(address)
+        address_book.save_to_file("address_book.pkl")
+        print(f"Address {address} removed")
+    else:
+        print(f"Contact {name} or {address} not found")
+
+
+@register_command(command="add_note")
+def add_note(name, *note_text):
+    record = address_book.find(name)
+    if record:
+        if record.note is None:
+            record.note = Note()
+        record.note.add_note(' '.join(note_text))
+        address_book.save_to_file("address_book.pkl")
+        print(f"Note added to {name}: {' '.join(note_text)}")
+    else:
+        print("Contact {name} not found")
+
+
+# @register_command(command="search_notes")
+# def search_notes():
+
+
+@register_command(command="del_note")
+def delete_note(name, *note_text):
+    record = address_book.find(name)
+    if record:
+        if record.note:
+            note = ' '.join(note_text)
+            if note in record.note.notes:
+                record.note.remove_note(note)
+                address_book.save_to_file("address_book.pkl")
+                print(f"Note '{note}' removed from {name}")
+            else:
+                print(f"Note '{note}' not found for {name}")
+        else:
+            print(f"No notes found for {name}")
     else:
         print(f"Contact {name} not found")
 
@@ -331,10 +448,15 @@ def display_commands():
     app.display_commands()
 
 
-# @register_command(command="load")
-# def load():
-#     address_book.load_from_file('address_book.pkl')
-#     return address_book
+@register_command(command="clean")
+def clean(path):
+    Clean.clean(path)
+
+
+@register_command(command="load")
+def load():
+    address_book.load_from_file('address_book.pkl')
+    print("Address book loaded")
 
 
 @register_command(command="exit")
@@ -344,15 +466,13 @@ def exit_cli():
 
 def main():
     while True:
-        user_input = input(">>> ")
+        user_input = input(">>> ").strip()
         user_input = user_input.lower()
-        items = user_input.split(" ")
-        command_name, *args = items
+        command_name, *args = user_input.split()
 
-        if COMMANDS.get(command_name):
-            result = COMMANDS[command_name](*args)
+        if command_name in COMMANDS:
+            COMMANDS[command_name](*args)
             if command_name in ["exit"]:
-                print(result)
                 break
         else:
             print("Unknown command")
